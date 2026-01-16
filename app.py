@@ -2,6 +2,7 @@ import os
 import uuid
 import subprocess
 import threading
+import torch
 from flask import Flask, render_template, request, jsonify, send_file
 import whisper
 
@@ -11,7 +12,91 @@ app.config['DOWNLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'downloa
 # Store job status
 jobs = {}
 
-def process_video(job_id, youtube_url, model_name):
+# Cache for loaded models
+model_cache = {}
+
+# Language configurations
+LANGUAGE_CONFIGS = {
+    'english': {
+        'type': 'whisper',
+        'language': 'en',
+        'name': 'English'
+    },
+    'russian': {
+        'type': 'huggingface',
+        'model_id': 'antony66/whisper-large-v3-russian',
+        'language': 'russian',
+        'name': 'Russian'
+    },
+    'armenian': {
+        'type': 'huggingface',
+        'model_id': 'Chillarmo/whisper-large-v3-turbo-armenian',
+        'language': 'armenian',
+        'name': 'Armenian'
+    }
+}
+
+def get_device():
+    """Get the best available device."""
+    if torch.cuda.is_available():
+        return 'cuda'
+    elif torch.backends.mps.is_available():
+        return 'mps'
+    return 'cpu'
+
+def transcribe_with_whisper(audio_path, model_name, language):
+    """Transcribe using standard OpenAI Whisper."""
+    cache_key = f"whisper_{model_name}"
+    if cache_key not in model_cache:
+        model_cache[cache_key] = whisper.load_model(model_name)
+
+    model = model_cache[cache_key]
+    result = model.transcribe(audio_path, language=language)
+    return result['text']
+
+def transcribe_with_huggingface(audio_path, model_id, language, job):
+    """Transcribe using HuggingFace transformers model."""
+    from transformers import pipeline, AutoModelForSpeechSeq2Seq, AutoProcessor
+    import librosa
+
+    device = get_device()
+    torch_dtype = torch.float16 if device in ['cuda', 'mps'] else torch.float32
+
+    cache_key = f"hf_{model_id}"
+
+    if cache_key not in model_cache:
+        job['message'] = f'Loading {language} model (first time may take a while)...'
+
+        model = AutoModelForSpeechSeq2Seq.from_pretrained(
+            model_id,
+            torch_dtype=torch_dtype,
+            low_cpu_mem_usage=True,
+            use_safetensors=True
+        )
+        model.to(device)
+
+        processor = AutoProcessor.from_pretrained(model_id)
+
+        pipe = pipeline(
+            "automatic-speech-recognition",
+            model=model,
+            tokenizer=processor.tokenizer,
+            feature_extractor=processor.feature_extractor,
+            torch_dtype=torch_dtype,
+            device=device,
+        )
+        model_cache[cache_key] = pipe
+
+    pipe = model_cache[cache_key]
+
+    # Load audio with librosa
+    audio, sr = librosa.load(audio_path, sr=16000)
+
+    # Transcribe
+    result = pipe(audio, generate_kwargs={"language": language, "max_new_tokens": 448})
+    return result['text']
+
+def process_video(job_id, youtube_url, model_name, language):
     """Download and transcribe YouTube video in background."""
     job = jobs[job_id]
     job_folder = os.path.join(app.config['DOWNLOAD_FOLDER'], job_id)
@@ -50,26 +135,40 @@ def process_video(job_id, youtube_url, model_name):
             job['message'] = 'MP3 file not created'
             return
 
-        # Step 2: Transcribe with Whisper
+        # Step 2: Transcribe
         job['status'] = 'transcribing'
-        job['message'] = f'Transcribing with Whisper ({model_name} model)...'
+        lang_config = LANGUAGE_CONFIGS.get(language, LANGUAGE_CONFIGS['english'])
+        job['message'] = f'Transcribing ({lang_config["name"]})...'
 
-        model = whisper.load_model(model_name)
-        result = model.transcribe(mp3_path)
+        if lang_config['type'] == 'whisper':
+            # Use standard Whisper for English
+            job['message'] = f'Transcribing with Whisper {model_name} ({lang_config["name"]})...'
+            transcript = transcribe_with_whisper(mp3_path, model_name, lang_config['language'])
+        else:
+            # Use HuggingFace model for Russian/Armenian
+            job['message'] = f'Transcribing with specialized {lang_config["name"]} model...'
+            transcript = transcribe_with_huggingface(
+                mp3_path,
+                lang_config['model_id'],
+                lang_config['language'],
+                job
+            )
 
         # Save transcript
-        with open(txt_path, 'w') as f:
-            f.write(result['text'])
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(transcript)
 
         job['status'] = 'completed'
         job['message'] = 'Transcription complete!'
         job['mp3_path'] = mp3_path
         job['txt_path'] = txt_path
-        job['transcript_preview'] = result['text'][:500] + '...' if len(result['text']) > 500 else result['text']
+        job['transcript_preview'] = transcript[:500] + '...' if len(transcript) > 500 else transcript
 
     except Exception as e:
         job['status'] = 'error'
         job['message'] = str(e)
+        import traceback
+        print(traceback.format_exc())
 
 @app.route('/')
 def index():
@@ -80,6 +179,7 @@ def transcribe():
     data = request.json
     youtube_url = data.get('url')
     model_name = data.get('model', 'base')
+    language = data.get('language', 'english')
 
     if not youtube_url:
         return jsonify({'error': 'No URL provided'}), 400
@@ -92,7 +192,7 @@ def transcribe():
     }
 
     # Start processing in background thread
-    thread = threading.Thread(target=process_video, args=(job_id, youtube_url, model_name))
+    thread = threading.Thread(target=process_video, args=(job_id, youtube_url, model_name, language))
     thread.start()
 
     return jsonify({'job_id': job_id})

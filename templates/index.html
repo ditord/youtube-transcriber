@@ -91,6 +91,20 @@
             border-color: #667eea;
         }
 
+        select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
         button {
             width: 100%;
             padding: 16px;
@@ -224,6 +238,30 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .language-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .badge-standard {
+            background: #667eea;
+        }
+
+        .badge-specialized {
+            background: #e67e22;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -237,17 +275,31 @@
                 <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." />
             </div>
 
-            <div class="form-group">
-                <label for="model">Whisper Model</label>
-                <select id="model">
-                    <option value="tiny">Tiny (fastest, less accurate)</option>
-                    <option value="base" selected>Base (balanced)</option>
-                    <option value="small">Small (better accuracy)</option>
-                    <option value="medium">Medium (high accuracy)</option>
-                    <option value="large">Large (best accuracy, slowest)</option>
-                </select>
-                <p class="model-info">Larger models are more accurate but take longer to process.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="language">Language</label>
+                    <select id="language" onchange="updateModelVisibility()">
+                        <option value="english">English</option>
+                        <option value="russian">Russian (specialized model)</option>
+                        <option value="armenian">Armenian (specialized model)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="model-group">
+                    <label for="model">Whisper Model</label>
+                    <select id="model">
+                        <option value="tiny">Tiny (fastest)</option>
+                        <option value="base" selected>Base (balanced)</option>
+                        <option value="small">Small (better)</option>
+                        <option value="medium">Medium (great)</option>
+                        <option value="large">Large (best)</option>
+                    </select>
+                </div>
             </div>
+
+            <p class="model-info" id="model-info">
+                Model selection applies to English. Russian and Armenian use specialized fine-tuned models.
+            </p>
 
             <button id="transcribe-btn" onclick="startTranscription()">
                 Transcribe Video
@@ -284,9 +336,28 @@
         let currentJobId = null;
         let pollInterval = null;
 
+        function updateModelVisibility() {
+            const language = document.getElementById('language').value;
+            const modelGroup = document.getElementById('model-group');
+            const modelSelect = document.getElementById('model');
+            const modelInfo = document.getElementById('model-info');
+
+            if (language === 'english') {
+                modelSelect.disabled = false;
+                modelGroup.style.opacity = '1';
+                modelInfo.textContent = 'Larger models are more accurate but take longer to process.';
+            } else {
+                modelSelect.disabled = true;
+                modelGroup.style.opacity = '0.5';
+                const langName = language.charAt(0).toUpperCase() + language.slice(1);
+                modelInfo.textContent = `${langName} uses a specialized fine-tuned Whisper model from HuggingFace.`;
+            }
+        }
+
         async function startTranscription() {
             const url = document.getElementById('url').value.trim();
             const model = document.getElementById('model').value;
+            const language = document.getElementById('language').value;
 
             if (!url) {
                 alert('Please enter a YouTube URL');
@@ -306,7 +377,7 @@
                 const response = await fetch('/transcribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, model })
+                    body: JSON.stringify({ url, model, language })
                 });
 
                 const data = await response.json();
@@ -367,6 +438,9 @@
             document.getElementById('status-text').textContent = 'Error: ' + message;
             document.getElementById('transcribe-btn').disabled = false;
         }
+
+        // Initialize
+        updateModelVisibility();
     </script>
 </body>
 </html>

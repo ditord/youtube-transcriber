@@ -5,9 +5,19 @@ A web-based tool to convert YouTube videos to text using OpenAI's Whisper AI.
 ## Features
 
 - Paste any YouTube URL to transcribe
-- Choose from multiple Whisper models (tiny, base, small, medium, large)
+- **Multi-language support**: English, Russian, and Armenian
+- Choose from multiple Whisper models (tiny, base, small, medium, large) for English
+- Specialized fine-tuned models for Russian and Armenian from HuggingFace
 - Real-time progress updates
 - Download MP3 audio and transcript text files
+
+## Supported Languages
+
+| Language | Model | Source |
+|----------|-------|--------|
+| English | OpenAI Whisper (selectable size) | Standard |
+| Russian | whisper-large-v3-russian | [HuggingFace](https://huggingface.co/antony66/whisper-large-v3-russian) |
+| Armenian | whisper-large-v3-turbo-armenian | [HuggingFace](https://huggingface.co/Chillarmo/whisper-large-v3-turbo-armenian) |
 
 ## Quick Start (macOS)
 
