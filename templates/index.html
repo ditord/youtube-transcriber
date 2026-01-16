@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Transcriber</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #ccc;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[type="text"]::placeholder {
+            color: #666;
+        }
+
+        select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .status-container.active {
+            display: block;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            font-size: 16px;
+            color: #ccc;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .success {
+            color: #51cf66;
+        }
+
+        .downloads {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .downloads.active {
+            display: block;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .download-btn {
+            flex: 1;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .download-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #667eea;
+        }
+
+        .download-btn .icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .transcript-preview {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .transcript-preview h3 {
+            margin-bottom: 10px;
+            color: #888;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .transcript-preview p {
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .model-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube Transcriber</h1>
+        <p class="subtitle">Convert YouTube videos to text using Whisper AI</p>
+
+        <div class="card">
+            <div class="form-group">
+                <label for="url">YouTube URL</label>
+                <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." />
+            </div>
+
+            <div class="form-group">
+                <label for="model">Whisper Model</label>
+                <select id="model">
+                    <option value="tiny">Tiny (fastest, less accurate)</option>
+                    <option value="base" selected>Base (balanced)</option>
+                    <option value="small">Small (better accuracy)</option>
+                    <option value="medium">Medium (high accuracy)</option>
+                    <option value="large">Large (best accuracy, slowest)</option>
+                </select>
+                <p class="model-info">Larger models are more accurate but take longer to process.</p>
+            </div>
+
+            <button id="transcribe-btn" onclick="startTranscription()">
+                Transcribe Video
+            </button>
+
+            <div class="status-container" id="status-container">
+                <div class="status-box">
+                    <div class="spinner" id="spinner"></div>
+                    <p class="status-text" id="status-text">Starting...</p>
+                </div>
+            </div>
+
+            <div class="downloads" id="downloads">
+                <div class="download-buttons">
+                    <a href="#" class="download-btn" id="download-mp3">
+                        <span class="icon">&#x1F3B5;</span>
+                        Download MP3
+                    </a>
+                    <a href="#" class="download-btn" id="download-txt">
+                        <span class="icon">&#x1F4C4;</span>
+                        Download Transcript
+                    </a>
+                </div>
+            </div>
+
+            <div class="transcript-preview" id="transcript-preview" style="display: none;">
+                <h3>Transcript Preview</h3>
+                <p id="preview-text"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let pollInterval = null;
+
+        async function startTranscription() {
+            const url = document.getElementById('url').value.trim();
+            const model = document.getElementById('model').value;
+
+            if (!url) {
+                alert('Please enter a YouTube URL');
+                return;
+            }
+
+            // Reset UI
+            document.getElementById('transcribe-btn').disabled = true;
+            document.getElementById('status-container').classList.add('active');
+            document.getElementById('downloads').classList.remove('active');
+            document.getElementById('transcript-preview').style.display = 'none';
+            document.getElementById('spinner').style.display = 'block';
+            document.getElementById('status-text').className = 'status-text';
+            document.getElementById('status-text').textContent = 'Starting...';
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, model })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                currentJobId = data.job_id;
+                pollStatus();
+            } catch (error) {
+                showError('Failed to start transcription: ' + error.message);
+            }
+        }
+
+        function pollStatus() {
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/status/${currentJobId}`);
+                    const data = await response.json();
+
+                    document.getElementById('status-text').textContent = data.message;
+
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showSuccess(data);
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        showError(data.message);
+                    }
+                } catch (error) {
+                    clearInterval(pollInterval);
+                    showError('Lost connection to server');
+                }
+            }, 1000);
+        }
+
+        function showSuccess(data) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('status-text').className = 'status-text success';
+            document.getElementById('status-text').textContent = 'Transcription complete!';
+
+            document.getElementById('download-mp3').href = `/download/${currentJobId}/mp3`;
+            document.getElementById('download-txt').href = `/download/${currentJobId}/txt`;
+            document.getElementById('downloads').classList.add('active');
+
+            if (data.transcript_preview) {
+                document.getElementById('preview-text').textContent = data.transcript_preview;
+                document.getElementById('transcript-preview').style.display = 'block';
+            }
+
+            document.getElementById('transcribe-btn').disabled = false;
+        }
+
+        function showError(message) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('status-text').className = 'status-text error';
+            document.getElementById('status-text').textContent = 'Error: ' + message;
+            document.getElementById('transcribe-btn').disabled = false;
+        }
+    </script>
+</body>
+</html>
