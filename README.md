@@ -151,7 +151,43 @@ sudo ufw allow 5000/tcp
 
 ---
 
-## Whisper Models
+## Pre-downloading Models
+
+Models are downloaded automatically on first use, but the initial download can be slow. To pre-download models before running the app:
+
+### Install HuggingFace CLI (if not installed)
+
+```bash
+pip install huggingface_hub
+```
+
+### Download Russian Model (~3GB)
+
+```bash
+huggingface-cli download antony66/whisper-large-v3-russian
+```
+
+### Download Armenian Model (~3GB)
+
+```bash
+huggingface-cli download Chillarmo/whisper-large-v3-turbo-armenian
+```
+
+### Custom Cache Location (Optional)
+
+By default, models are cached in `~/.cache/huggingface/hub/`. To use a custom location:
+
+```bash
+export HF_HOME=/path/to/your/models
+huggingface-cli download antony66/whisper-large-v3-russian
+huggingface-cli download Chillarmo/whisper-large-v3-turbo-armenian
+```
+
+Set `HF_HOME` before running the app to use models from your custom location.
+
+---
+
+## Whisper Models (English)
 
 | Model | Size | Speed | Accuracy |
 |-------|------|-------|----------|
@@ -161,4 +197,4 @@ sudo ufw allow 5000/tcp
 | medium | 769 MB | Slower | Great |
 | large | 1.5 GB | Slowest | Best |
 
-Models are downloaded automatically on first use.
+English Whisper models are downloaded automatically on first use.

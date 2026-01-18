@@ -82,18 +82,21 @@ def transcribe_with_huggingface(audio_path, model_id, language, job):
             model=model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
-            torch_dtype=torch_dtype,
+            dtype=torch_dtype,
             device=device,
+            chunk_length_s=30,
+            batch_size=8,
         )
         model_cache[cache_key] = pipe
 
     pipe = model_cache[cache_key]
 
-    # Load audio with librosa
-    audio, sr = librosa.load(audio_path, sr=16000)
-
-    # Transcribe
-    result = pipe(audio, generate_kwargs={"language": language, "max_new_tokens": 448})
+    # Transcribe directly from file path (pipeline handles loading)
+    result = pipe(
+        audio_path,
+        return_timestamps=True,
+        generate_kwargs={"language": language, "max_new_tokens": 440}
+    )
     return result['text']
 
 def process_video(job_id, youtube_url, model_name, language):
