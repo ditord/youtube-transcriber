@@ -29,6 +29,22 @@ Then open http://127.0.0.1:5000
 
 ---
 
+## Docker
+
+For Docker-based deployment, use the [`docker` branch](https://github.com/ditord/youtube-transcriber/tree/docker):
+
+```bash
+git clone -b docker https://github.com/ditord/youtube-transcriber.git
+cd youtube-transcriber
+docker compose up -d
+```
+
+Then open http://localhost:5000
+
+See the [docker branch README](https://github.com/ditord/youtube-transcriber/tree/docker#docker-recommended) for full instructions.
+
+---
+
 ## Linux Server Setup
 
 ### 1. Install System Dependencies
