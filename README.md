@@ -29,7 +29,67 @@ Then open http://127.0.0.1:5000
 
 ---
 
-## Linux Server Setup
+## Docker (Recommended)
+
+The easiest way to run YouTube Transcriber on any system.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop)
+
+### Run with Docker Compose
+
+```bash
+# Clone the repository
+git clone https://github.com/ditord/youtube-transcriber.git
+cd youtube-transcriber
+
+# Build and run
+docker compose up -d
+```
+
+Open **http://localhost:5000** in your browser.
+
+### Docker Commands
+
+```bash
+# Start the container
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+
+# Rebuild after updates
+docker compose up -d --build
+```
+
+### Run with Docker (without Compose)
+
+```bash
+# Build the image
+docker build -t youtube-transcriber .
+
+# Run the container
+docker run -d \
+  --name youtube-transcriber \
+  -p 5000:5000 \
+  -v $(pwd)/downloads:/app/downloads \
+  youtube-transcriber
+```
+
+### Notes
+
+- Models are cached in Docker volumes, so they persist between restarts
+- First transcription in each language will download the model (~1-3GB)
+- Downloads are saved to `./downloads/` directory
+
+---
+
+## Linux Server Setup (Manual)
 
 ### 1. Install System Dependencies
 

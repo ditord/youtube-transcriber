@@ -1,0 +1,21 @@
+services:
+  youtube-transcriber:
+    build: .
+    container_name: youtube-transcriber
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist downloads between restarts
+      - ./downloads:/app/downloads
+      # Cache HuggingFace models to avoid re-downloading
+      - huggingface-cache:/root/.cache/huggingface
+      # Cache Whisper models
+      - whisper-cache:/root/.cache/whisper
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+    restart: unless-stopped
+
+volumes:
+  huggingface-cache:
+  whisper-cache:
