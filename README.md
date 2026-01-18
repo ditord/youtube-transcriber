@@ -16,8 +16,10 @@ A web-based tool to convert YouTube videos to text using OpenAI's Whisper AI.
 | Language | Model | Source |
 |----------|-------|--------|
 | English | OpenAI Whisper (selectable size) | Standard |
-| Russian | whisper-large-v3-russian | [HuggingFace](https://huggingface.co/antony66/whisper-large-v3-russian) |
-| Armenian | whisper-large-v3-turbo-armenian | [HuggingFace](https://huggingface.co/Chillarmo/whisper-large-v3-turbo-armenian) |
+| Russian | whisper-large-v3-russian | [HuggingFace](https://huggingface.co/ditord/whisper-large-v3-russian) |
+| Armenian | whisper-large-v3-turbo-armenian | [HuggingFace](https://huggingface.co/ditord/whisper-large-v3-turbo-armenian) |
+
+**Fallback:** If specialized models are unavailable, the app automatically falls back to standard Whisper with the appropriate language setting.
 
 ## Quick Start (macOS)
 
