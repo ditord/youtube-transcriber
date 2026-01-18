@@ -35,45 +35,86 @@ The easiest way to run YouTube Transcriber on any system.
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop)
+Install Docker for your platform:
 
-### Run with Docker Compose
+| Platform | Install |
+|----------|---------|
+| **macOS** | [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/) |
+| **Windows** | [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) |
+| **Linux** | [Docker Engine](https://docs.docker.com/engine/install/) + [Docker Compose](https://docs.docker.com/compose/install/linux/) |
+
+---
+
+### macOS / Linux
 
 ```bash
 # Clone the repository
-git clone https://github.com/ditord/youtube-transcriber.git
+git clone -b docker https://github.com/ditord/youtube-transcriber.git
 cd youtube-transcriber
 
 # Build and run
 docker compose up -d
+
+# Open in browser
+open http://localhost:5000    # macOS
+xdg-open http://localhost:5000  # Linux
 ```
 
-Open **http://localhost:5000** in your browser.
-
-### Docker Commands
-
+**Commands:**
 ```bash
-# Start the container
+docker compose up -d          # Start in background
+docker compose logs -f        # View logs
+docker compose down           # Stop
+docker compose up -d --build  # Rebuild after updates
+```
+
+---
+
+### Windows (PowerShell)
+
+```powershell
+# Clone the repository
+git clone -b docker https://github.com/ditord/youtube-transcriber.git
+cd youtube-transcriber
+
+# Build and run
 docker compose up -d
 
-# View logs
-docker compose logs -f
-
-# Stop the container
-docker compose down
-
-# Rebuild after updates
-docker compose up -d --build
+# Open in browser
+start http://localhost:5000
 ```
 
-### Run with Docker (without Compose)
+**Commands:**
+```powershell
+docker compose up -d          # Start in background
+docker compose logs -f        # View logs
+docker compose down           # Stop
+docker compose up -d --build  # Rebuild after updates
+```
 
+---
+
+### Windows (Command Prompt)
+
+```cmd
+REM Clone the repository
+git clone -b docker https://github.com/ditord/youtube-transcriber.git
+cd youtube-transcriber
+
+REM Build and run
+docker compose up -d
+
+REM Open in browser
+start http://localhost:5000
+```
+
+---
+
+### Run without Docker Compose
+
+**macOS / Linux:**
 ```bash
-# Build the image
 docker build -t youtube-transcriber .
-
-# Run the container
 docker run -d \
   --name youtube-transcriber \
   -p 5000:5000 \
@@ -81,11 +122,24 @@ docker run -d \
   youtube-transcriber
 ```
 
+**Windows (PowerShell):**
+```powershell
+docker build -t youtube-transcriber .
+docker run -d `
+  --name youtube-transcriber `
+  -p 5000:5000 `
+  -v ${PWD}/downloads:/app/downloads `
+  youtube-transcriber
+```
+
+---
+
 ### Notes
 
 - Models are cached in Docker volumes, so they persist between restarts
 - First transcription in each language will download the model (~1-3GB)
 - Downloads are saved to `./downloads/` directory
+- Works on Intel/AMD (x86_64) and Apple Silicon (ARM64)
 
 ---
 
