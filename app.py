@@ -20,18 +20,21 @@ LANGUAGE_CONFIGS = {
     'english': {
         'type': 'whisper',
         'language': 'en',
+        'whisper_lang': 'en',
         'name': 'English'
     },
     'russian': {
         'type': 'huggingface',
-        'model_id': 'antony66/whisper-large-v3-russian',
+        'model_id': 'ditord/whisper-large-v3-russian',
         'language': 'russian',
+        'whisper_lang': 'ru',  # Fallback language code for standard Whisper
         'name': 'Russian'
     },
     'armenian': {
         'type': 'huggingface',
-        'model_id': 'Chillarmo/whisper-large-v3-turbo-armenian',
+        'model_id': 'ditord/whisper-large-v3-turbo-armenian',
         'language': 'armenian',
+        'whisper_lang': 'hy',  # Fallback language code for standard Whisper
         'name': 'Armenian'
     }
 }
@@ -146,16 +149,23 @@ def process_video(job_id, youtube_url, model_name, language):
         if lang_config['type'] == 'whisper':
             # Use standard Whisper for English
             job['message'] = f'Transcribing with Whisper {model_name} ({lang_config["name"]})...'
-            transcript = transcribe_with_whisper(mp3_path, model_name, lang_config['language'])
+            transcript = transcribe_with_whisper(mp3_path, model_name, lang_config['whisper_lang'])
         else:
-            # Use HuggingFace model for Russian/Armenian
-            job['message'] = f'Transcribing with specialized {lang_config["name"]} model...'
-            transcript = transcribe_with_huggingface(
-                mp3_path,
-                lang_config['model_id'],
-                lang_config['language'],
-                job
-            )
+            # Try HuggingFace model for Russian/Armenian, with fallback to standard Whisper
+            try:
+                job['message'] = f'Transcribing with specialized {lang_config["name"]} model...'
+                transcript = transcribe_with_huggingface(
+                    mp3_path,
+                    lang_config['model_id'],
+                    lang_config['language'],
+                    job
+                )
+            except Exception as hf_error:
+                # Fallback to standard Whisper if HuggingFace model fails
+                print(f"HuggingFace model failed: {hf_error}")
+                print(f"Falling back to standard Whisper for {lang_config['name']}...")
+                job['message'] = f'Specialized model unavailable, using standard Whisper for {lang_config["name"]}...'
+                transcript = transcribe_with_whisper(mp3_path, 'large', lang_config['whisper_lang'])
 
         # Save transcript
         with open(txt_path, 'w', encoding='utf-8') as f:
