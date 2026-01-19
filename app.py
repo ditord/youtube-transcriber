@@ -4,10 +4,16 @@ import subprocess
 import threading
 import torch
 from flask import Flask, render_template, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 import whisper
 
 app = Flask(__name__)
 app.config['DOWNLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'downloads')
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB max upload size
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg', 'wma', 'aac', 'mp4', 'webm', 'mkv', 'avi', 'mov'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Store job status
 jobs = {}
@@ -183,6 +189,55 @@ def process_video(job_id, youtube_url, model_name, language):
         import traceback
         print(traceback.format_exc())
 
+def process_audio(job_id, audio_path, model_name, language):
+    """Transcribe uploaded audio file in background."""
+    job = jobs[job_id]
+    job_folder = os.path.dirname(audio_path)
+    txt_path = os.path.join(job_folder, 'transcript.txt')
+
+    try:
+        # Transcribe
+        job['status'] = 'transcribing'
+        lang_config = LANGUAGE_CONFIGS.get(language, LANGUAGE_CONFIGS['english'])
+        job['message'] = f'Transcribing ({lang_config["name"]})...'
+
+        if lang_config['type'] == 'whisper':
+            # Use standard Whisper for English
+            job['message'] = f'Transcribing with Whisper {model_name} ({lang_config["name"]})...'
+            transcript = transcribe_with_whisper(audio_path, model_name, lang_config['whisper_lang'])
+        else:
+            # Try HuggingFace model for Russian/Armenian, with fallback to standard Whisper
+            try:
+                job['message'] = f'Transcribing with specialized {lang_config["name"]} model...'
+                transcript = transcribe_with_huggingface(
+                    audio_path,
+                    lang_config['model_id'],
+                    lang_config['language'],
+                    job
+                )
+            except Exception as hf_error:
+                # Fallback to standard Whisper if HuggingFace model fails
+                print(f"HuggingFace model failed: {hf_error}")
+                print(f"Falling back to standard Whisper for {lang_config['name']}...")
+                job['message'] = f'Specialized model unavailable, using standard Whisper for {lang_config["name"]}...'
+                transcript = transcribe_with_whisper(audio_path, 'large', lang_config['whisper_lang'])
+
+        # Save transcript
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(transcript)
+
+        job['status'] = 'completed'
+        job['message'] = 'Transcription complete!'
+        job['audio_path'] = audio_path
+        job['txt_path'] = txt_path
+        job['transcript_preview'] = transcript[:500] + '...' if len(transcript) > 500 else transcript
+
+    except Exception as e:
+        job['status'] = 'error'
+        job['message'] = str(e)
+        import traceback
+        print(traceback.format_exc())
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -210,6 +265,42 @@ def transcribe():
 
     return jsonify({'job_id': job_id})
 
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+
+    model_name = request.form.get('model', 'base')
+    language = request.form.get('language', 'english')
+
+    job_id = str(uuid.uuid4())
+    job_folder = os.path.join(app.config['DOWNLOAD_FOLDER'], job_id)
+    os.makedirs(job_folder, exist_ok=True)
+
+    # Save uploaded file
+    filename = secure_filename(file.filename)
+    audio_path = os.path.join(job_folder, filename)
+    file.save(audio_path)
+
+    jobs[job_id] = {
+        'status': 'starting',
+        'message': 'Processing uploaded file...',
+        'filename': filename
+    }
+
+    # Start processing in background thread
+    thread = threading.Thread(target=process_audio, args=(job_id, audio_path, model_name, language))
+    thread.start()
+
+    return jsonify({'job_id': job_id})
+
 @app.route('/status/<job_id>')
 def status(job_id):
     if job_id not in jobs:
@@ -225,8 +316,13 @@ def download(job_id, file_type):
     if job['status'] != 'completed':
         return jsonify({'error': 'Job not completed'}), 400
 
-    if file_type == 'mp3':
-        return send_file(job['mp3_path'], as_attachment=True, download_name='audio.mp3')
+    if file_type == 'audio':
+        # Handle both YouTube (mp3_path) and uploaded files (audio_path)
+        audio_path = job.get('mp3_path') or job.get('audio_path')
+        if audio_path and os.path.exists(audio_path):
+            filename = os.path.basename(audio_path)
+            return send_file(audio_path, as_attachment=True, download_name=filename)
+        return jsonify({'error': 'Audio file not found'}), 404
     elif file_type == 'txt':
         return send_file(job['txt_path'], as_attachment=True, download_name='transcript.txt')
     else:
