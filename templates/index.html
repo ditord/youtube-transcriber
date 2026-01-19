@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Transcriber</title>
+    <title>Audio Transcriber</title>
     <style>
         * {
             box-sizing: border-box;
@@ -44,6 +44,45 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #888;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .tab:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #ccc;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -73,6 +112,75 @@
 
         input[type="text"]::placeholder {
             color: #666;
+        }
+
+        .file-upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .file-upload-area .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-area p {
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .file-upload-area .formats {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .selected-file {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .selected-file.active {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .selected-file .filename {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .selected-file .remove-file {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 18px;
+            width: auto;
         }
 
         select {
@@ -237,23 +345,7 @@
             font-size: 12px;
             color: #666;
             margin-top: 5px;
-        }
-
-        .language-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-
-        .badge-standard {
-            background: #667eea;
-        }
-
-        .badge-specialized {
-            background: #e67e22;
+            margin-bottom: 20px;
         }
 
         @media (max-width: 600px) {
@@ -266,13 +358,36 @@
 </head>
 <body>
     <div class="container">
-        <h1>YouTube Transcriber</h1>
-        <p class="subtitle">Convert YouTube videos to text using Whisper AI</p>
+        <h1>Audio Transcriber</h1>
+        <p class="subtitle">Convert audio to text using Whisper AI</p>
 
         <div class="card">
-            <div class="form-group">
-                <label for="url">YouTube URL</label>
-                <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." />
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('youtube')">YouTube URL</div>
+                <div class="tab" onclick="switchTab('upload')">Upload File</div>
+            </div>
+
+            <div id="youtube-tab" class="tab-content active">
+                <div class="form-group">
+                    <label for="url">YouTube URL</label>
+                    <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." />
+                </div>
+            </div>
+
+            <div id="upload-tab" class="tab-content">
+                <div class="form-group">
+                    <label>Audio/Video File</label>
+                    <div class="file-upload-area" id="drop-area" onclick="document.getElementById('file-input').click()">
+                        <div class="icon">&#x1F4C1;</div>
+                        <p>Click to browse or drag and drop</p>
+                        <p class="formats">MP3, WAV, FLAC, M4A, OGG, MP4, WebM, MKV, AVI, MOV</p>
+                        <input type="file" id="file-input" accept=".mp3,.wav,.flac,.m4a,.ogg,.wma,.aac,.mp4,.webm,.mkv,.avi,.mov" />
+                    </div>
+                    <div class="selected-file" id="selected-file">
+                        <span class="filename" id="selected-filename"></span>
+                        <button class="remove-file" onclick="removeFile(event)">&times;</button>
+                    </div>
+                </div>
             </div>
 
             <div class="form-row">
@@ -302,7 +417,7 @@
             </p>
 
             <button id="transcribe-btn" onclick="startTranscription()">
-                Transcribe Video
+                Transcribe
             </button>
 
             <div class="status-container" id="status-container">
@@ -314,9 +429,9 @@
 
             <div class="downloads" id="downloads">
                 <div class="download-buttons">
-                    <a href="#" class="download-btn" id="download-mp3">
+                    <a href="#" class="download-btn" id="download-audio">
                         <span class="icon">&#x1F3B5;</span>
-                        Download MP3
+                        Download Audio
                     </a>
                     <a href="#" class="download-btn" id="download-txt">
                         <span class="icon">&#x1F4C4;</span>
@@ -335,6 +450,69 @@
     <script>
         let currentJobId = null;
         let pollInterval = null;
+        let currentTab = 'youtube';
+        let selectedFile = null;
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            if (tab === 'youtube') {
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                document.getElementById('youtube-tab').classList.add('active');
+            } else {
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('upload-tab').classList.add('active');
+            }
+        }
+
+        // File drag and drop
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('selected-filename').textContent = file.name;
+            document.getElementById('selected-file').classList.add('active');
+        }
+
+        function removeFile(e) {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            document.getElementById('selected-file').classList.remove('active');
+        }
 
         function updateModelVisibility() {
             const language = document.getElementById('language').value;
@@ -355,23 +533,28 @@
         }
 
         async function startTranscription() {
-            const url = document.getElementById('url').value.trim();
             const model = document.getElementById('model').value;
             const language = document.getElementById('language').value;
 
-            if (!url) {
-                alert('Please enter a YouTube URL');
-                return;
+            // Validate input based on current tab
+            if (currentTab === 'youtube') {
+                const url = document.getElementById('url').value.trim();
+                if (!url) {
+                    alert('Please enter a YouTube URL');
+                    return;
+                }
+                await startYouTubeTranscription(url, model, language);
+            } else {
+                if (!selectedFile) {
+                    alert('Please select a file to transcribe');
+                    return;
+                }
+                await startFileTranscription(selectedFile, model, language);
             }
+        }
 
-            // Reset UI
-            document.getElementById('transcribe-btn').disabled = true;
-            document.getElementById('status-container').classList.add('active');
-            document.getElementById('downloads').classList.remove('active');
-            document.getElementById('transcript-preview').style.display = 'none';
-            document.getElementById('spinner').style.display = 'block';
-            document.getElementById('status-text').className = 'status-text';
-            document.getElementById('status-text').textContent = 'Starting...';
+        async function startYouTubeTranscription(url, model, language) {
+            resetUI();
 
             try {
                 const response = await fetch('/transcribe', {
@@ -391,6 +574,43 @@
             } catch (error) {
                 showError('Failed to start transcription: ' + error.message);
             }
+        }
+
+        async function startFileTranscription(file, model, language) {
+            resetUI();
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('model', model);
+            formData.append('language', language);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                currentJobId = data.job_id;
+                pollStatus();
+            } catch (error) {
+                showError('Failed to upload file: ' + error.message);
+            }
+        }
+
+        function resetUI() {
+            document.getElementById('transcribe-btn').disabled = true;
+            document.getElementById('status-container').classList.add('active');
+            document.getElementById('downloads').classList.remove('active');
+            document.getElementById('transcript-preview').style.display = 'none';
+            document.getElementById('spinner').style.display = 'block';
+            document.getElementById('status-text').className = 'status-text';
+            document.getElementById('status-text').textContent = 'Starting...';
         }
 
         function pollStatus() {
@@ -420,7 +640,7 @@
             document.getElementById('status-text').className = 'status-text success';
             document.getElementById('status-text').textContent = 'Transcription complete!';
 
-            document.getElementById('download-mp3').href = `/download/${currentJobId}/mp3`;
+            document.getElementById('download-audio').href = `/download/${currentJobId}/audio`;
             document.getElementById('download-txt').href = `/download/${currentJobId}/txt`;
             document.getElementById('downloads').classList.add('active');
 
